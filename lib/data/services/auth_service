@@ -1,0 +1,62 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class AuthService {
+  AuthService(this._supabase);
+
+  final SupabaseClient _supabase;
+  final _storage = const FlutterSecureStorage();
+
+  static const _accessTokenKey = 'yandex_access_token';
+  static const _refreshTokenKey = 'yandex_refresh_token';
+  static const _expiresAtKey = 'yandex_token_expires_at';
+
+  Session? get currentSession => _supabase.auth.currentSession;
+
+  bool get isAuthorized => currentSession != null;
+
+  /*Future<void> loginWithYandex() async {
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.custom('yandex'),
+      redirectTo: 'plannerapp://auth-callback',
+      scopes: 'login:email login:info',
+    );
+  }*/
+  Future<void> loginWithYandex() async {
+  throw UnimplementedError(
+    'Вход через Яндекс будет подключён после настройки OAuth в Supabase.',
+  );
+  }
+
+  Future<void> refreshTokenIfNeeded() async {
+    final expiresAt = int.tryParse(
+      await _storage.read(key: _expiresAtKey) ?? '',
+    );
+
+    if (expiresAt == null) return;
+
+    final expires = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+    if (DateTime.now().isBefore(expires.subtract(const Duration(minutes: 5)))) {
+      return;
+    }
+
+    await _supabase.auth.refreshSession();
+  }
+
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+    required int expiresAt,
+  }) async {
+    await _storage.write(key: _accessTokenKey, value: accessToken);
+    await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    await _storage.write(key: _expiresAtKey, value: expiresAt.toString());
+  }
+
+  Future<void> logout() async {
+    await _supabase.auth.signOut();
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _expiresAtKey);
+  }
+}
